@@ -14,6 +14,14 @@ GitHub：[https://github.com/chenxuuu/24h-raspberry-live-on-bilibili.git](https:
 
 git.osc：[https://gitee.com/Young_For_You/24h-raspberry-live-on-bilibili.git](https://gitee.com/Young_For_You/24h-raspberry-live-on-bilibili.git)
 
+----
+
+### 同时也可以去用smilecc大佬重构的版本：
+
+[blive-raspberry（https://github.com/smilecc/blive-raspberry）](https://github.com/smilecc/blive-raspberry)
+
+-------
+
 本项目基本编写完毕，已经有的功能为：
 
 - 弹幕点歌
@@ -123,6 +131,21 @@ fc-list :lang=zh-cn
 
 （字体安装来自[ubuntu下 bilibili直播推流 ffmpeg rtmp推送](https://ppx.ink/2.ppx)）
 
+### 设置显存
+
+打开树莓派设置：
+
+```Bash
+sudo raspi-config
+```
+
+选择`Advanced Options`，回车
+
+选择`Memory Split`，回车
+
+把数值改成`256`
+
+回车，接着退出设置，重启树莓派
 
 ### 烹饪&摆盘：
 

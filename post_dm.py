@@ -12,6 +12,7 @@ import ass_maker
 import var_set
 import _thread
 import random
+import dht11
 
 path = var_set.path         #引入设置路径
 roomid = var_set.roomid     #引入设置房间号
@@ -118,7 +119,7 @@ def get_download_url(s, t, user, song = "nothing"):
                 time.sleep(1)   #等待
             encode_lock = True  #进入渲染，加上渲染锁，防止其他视频一起渲染
             send_dm_long(t+str(s)+'正在渲染')
-            os.system('ffmpeg -i "'+path+'/downloads/'+filename+'.mp4" -vf ass="'+path+"/downloads/"+filename+'ok.ass'+'" -c:v libx264 -s 1280x720 -preset ultrafast -maxrate '+var_set.maxbitrate+'k -tune fastdecode -acodec aac -b:a 192k "'+path+'/downloads/'+filename+'rendering.flv"')
+            os.system('ffmpeg -i "'+path+'/downloads/'+filename+'.mp4" -aspect 16:9 -vf "scale=1280:720, ass='+path+"/downloads/"+filename+'ok.ass'+'" -c:v libx264 -preset ultrafast -maxrate '+var_set.maxbitrate+'k -tune fastdecode -acodec aac -b:a 192k "'+path+'/downloads/'+filename+'rendering.flv"')
             encode_lock = False #关闭渲染锁，以便其他任务继续渲染
             del_file(filename+'.mp4')   #删除渲染所用的原文件
             os.rename(path+'/downloads/'+filename+'rendering.flv',path+'/downloads/'+filename+'ok.flv') #重命名文件，标记为渲染完毕（ok）
@@ -175,7 +176,7 @@ def download_bilibili(video_url,user):
             time.sleep(1)   #等待
         encode_lock = True  #进入渲染，加上渲染锁，防止其他视频一起渲染
         send_dm_long('番剧'+video_title+'正在渲染')
-        os.system('ffmpeg -i "'+path+'/downloads/'+filename+'rendering1.flv" -vf ass="'+path+"/downloads/"+filename+'ok.ass'+'" -c:v libx264 -s 1280x720 -preset ultrafast -maxrate '+var_set.maxbitrate+'k -tune fastdecode -acodec aac -b:a 192k "'+path+'/downloads/'+filename+'rendering.flv"')
+        os.system('ffmpeg -i "'+path+'/downloads/'+filename+'rendering1.flv" -aspect 16:9 -vf "scale=1280:720, ass='+path+"/downloads/"+filename+'ok.ass'+'" -c:v libx264 -preset ultrafast -maxrate '+var_set.maxbitrate+'k -tune fastdecode -acodec aac -b:a 192k "'+path+'/downloads/'+filename+'rendering.flv"')
         encode_lock = False #关闭渲染锁，以便其他任务继续渲染
         del_file(filename+'rendering1.flv') #删除渲染所用的原文件
         os.rename(path+'/downloads/'+filename+'rendering.flv',path+'/downloads/'+filename+'ok.flv') #重命名文件，标记为渲染完毕（ok）
@@ -191,14 +192,22 @@ def download_av(video_url,user):
         send_dm_long('树莓存储空间已爆炸，请联系up')
         return
     try:
+        v_format = 'flv'
         print('[log]downloading bilibili video:'+str(video_url))
         video_info = json.loads(os.popen('you-get '+video_url+' --json').read())
         video_title = video_info['title']
         send_dm_long('正在下载'+video_title)
         #send_dm('注意，视频下载十分费时，请耐心等待')
         filename = str(time.mktime(datetime.datetime.now().timetuple()))
-        os.system('you-get '+video_url+' --format=flv -o '+path+'/downloads -O '+filename+'rendering1')
-        print('you-get '+video_url+' --format=flv -o '+path+'/downloads -O '+filename+'rendering1')
+        os.system('you-get '+video_url+' -o '+path+'/downloads -O '+filename+'rendering1')
+        print('you-get '+video_url+' -o '+path+'/downloads -O '+filename+'rendering1')
+        if(os.path.isfile(path+'/downloads/'+filename+'rendering1.flv')):
+            v_format = 'flv'
+        elif(os.path.isfile(path+'/downloads/'+filename+'rendering1.mp4')):
+            v_format = 'mp4'
+        else:
+            send_dm_long('视频'+video_title+'下载失败，请重试')
+            return
         ass_maker.make_ass(filename+'ok','点播人：'+user+"\\N视频："+video_title+"\\N"+video_url,path)
         ass_maker.make_info(filename+'ok','视频：'+video_title+",点播人："+user,path)
         send_dm_long('视频'+video_title+'下载完成，等待渲染')
@@ -206,9 +215,9 @@ def download_av(video_url,user):
             time.sleep(1)
         encode_lock = True
         send_dm_long('视频'+video_title+'正在渲染')
-        os.system('ffmpeg -i "'+path+'/downloads/'+filename+'rendering1.flv" -vf ass="'+path+"/downloads/"+filename+'ok.ass'+'" -c:v libx264 -s 1280x720 -preset ultrafast -maxrate '+var_set.maxbitrate+'k -tune fastdecode -acodec aac -b:a 192k "'+path+'/downloads/'+filename+'rendering.flv"')
+        os.system('ffmpeg -i "'+path+'/downloads/'+filename+'rendering1.'+v_format+'" -aspect 16:9 -vf "scale=1280:720, ass='+path+"/downloads/"+filename+'ok.ass'+'" -c:v libx264 -preset ultrafast -maxrate '+var_set.maxbitrate+'k -tune fastdecode -acodec aac -b:a 192k "'+path+'/downloads/'+filename+'rendering.flv"')
         encode_lock = False
-        del_file(filename+'rendering1.flv')
+        del_file(filename+'rendering1.'+v_format)
         os.rename(path+'/downloads/'+filename+'rendering.flv',path+'/downloads/'+filename+'ok.flv')
         send_dm_long('视频'+video_title+'渲染完毕，已加入播放队列')
     except:
@@ -265,6 +274,7 @@ def pick_msg(s, user):
     #下面的不作解释，很简单一看就懂
     if(s.find('mvid+') == 0):
         send_dm_long('已收到'+user+'的指令')
+        s = s.replace(' ', '')   #剔除弹幕中的所有空格
         _thread.start_new_thread(get_download_url, (s.replace('mvid+', '', 1), 'mv',user))
     elif (s.find('mv+') == 0):
         try:
@@ -282,9 +292,11 @@ def pick_msg(s, user):
             send_dm_long('出错了：没这首歌')
     elif (s.find('id+') == 0):
         send_dm_long('已收到'+user+'的指令')
+        s = s.replace(' ', '')   #剔除弹幕中的所有空格
         _thread.start_new_thread(get_download_url, (s.replace('id+', '', 1), 'id',user))
     elif(s.find('mvid') == 0):
         send_dm_long('已收到'+user+'的指令')
+        s = s.replace(' ', '')   #剔除弹幕中的所有空格
         _thread.start_new_thread(get_download_url, (s.replace('mvid', '', 1), 'mv',user))
     elif (s.find('mv') == 0):
         try:
@@ -302,6 +314,7 @@ def pick_msg(s, user):
             send_dm_long('出错了：没这首歌')
     elif (s.find('id') == 0):
         send_dm_long('已收到'+user+'的指令')
+        s = s.replace(' ', '')   #剔除弹幕中的所有空格
         _thread.start_new_thread(get_download_url, (s.replace('id', '', 1), 'id',user))
     elif (s.find('点歌') == 0):
         try:
@@ -400,6 +413,7 @@ def pick_msg(s, user):
         except:
             print('[log]video not found')
     elif (s.find('av') == 0):
+        s = s.replace(' ', '')   #剔除弹幕中的所有空格
         try:
             if(s.find('p') == -1):
                 send_dm_long('已收到'+user+'的指令')
@@ -416,8 +430,16 @@ def pick_msg(s, user):
             print('[log]video not found')
     elif (s.find('温度') > -1):
         send_dm_long("CPU "+os.popen('vcgencmd measure_temp').readline())   #读取命令行得到的温度
+        try:
+            temp = dht11.get_dht11()
+            send_dm_long("温度："+str(temp[0])+"℃，湿度："+str(temp[1])+"%")
+        except Exception as e:  #防炸
+            print('shit')
+            print(e)
+            send_dm_long("温湿度获取失败")
     elif (s.find('歌单') == 0):
         send_dm_long('已收到'+user+'的指令')
+        s = s.replace(' ', '')   #剔除弹幕中的所有空格
         _thread.start_new_thread(playlist_download, (s.replace('歌单', '', 1),user))
     # else:
     #     print('not match anything')
@@ -469,10 +491,10 @@ def send_dm(s):
     
 #每条弹幕最长只能发送20字符，过长的弹幕分段发送
 def send_dm_long(s):
-    n=20
+    n=var_set.dm_size
     for hx in sensitive_word:                  #处理和谐词，防止点播机的回复被和谐
         if (s.find(hx) > -1):
-            s = s.replace(hx, hx[0]+" "+hx[1:])    #在和谐词第一个字符后加上一个空格
+            s = s.replace(hx, hx[0]+"-"+hx[1:])    #在和谐词第一个字符后加上一个空格
     for i in range(0, len(s), n):
         send_dm(s[i:i+n])
 
@@ -521,7 +543,7 @@ def get_dm_loop():
             if(check_dm(t_get)):
                 print('[log]['+t_get['timeline']+']'+t_get['nickname']+':'+t_get['text'])
                 #send_dm('用户'+t_get['nickname']+'发送了'+t_get['text']) #别开，会死循环
-                text = t_get['text'].replace(' ', '')   #剔除弹幕中的所有空格
+                text = t_get['text']
                 pick_msg(text,t_get['nickname'])   #新弹幕检测是否匹配为命令
         temp_dm = dm_result
         time.sleep(1)
